@@ -1,5 +1,5 @@
-use std::process::exit;
 use clap::{Parser, Subcommand};
+use std::process::exit;
 
 #[derive(Subcommand)]
 enum KvsCommand {
@@ -10,20 +10,20 @@ enum KvsCommand {
 
 #[derive(Parser)]
 #[command(author, version)]
-struct KvsParser {
+struct KvsConfig {
     #[command(subcommand)]
     command: KvsCommand,
 }
 
 fn main() {
-    let parser = KvsParser::parse();
+    let parser = KvsConfig::parse();
     match parser.command {
         KvsCommand::Set { key, value } => {
             eprintln!("unimplemented");
-        },
+        }
         KvsCommand::Get { key } => {
             eprintln!("unimplemented");
-        },
+        }
         KvsCommand::Remove { key } => {
             eprintln!("unimplemented");
         }
