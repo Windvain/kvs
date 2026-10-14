@@ -5,6 +5,8 @@ use std::process::exit;
 enum KvsCommand {
     Set { key: String, value: String },
     Get { key: String },
+
+    #[command(name = "rm")]
     Remove { key: String },
 }
 
