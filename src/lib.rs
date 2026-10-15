@@ -93,7 +93,6 @@ impl KvStore {
             let mut string = String::new();
 
             buf_reader.read_line(&mut string)?;
-            println!("{string}");
 
             let entry: KvsLogEntry = serde_json::from_str(&string)?;
             return Ok(Some(entry.value));
@@ -139,8 +138,6 @@ impl KvStore {
             buffer.clear();
             offset = buf_reader.seek(SeekFrom::Current(0))?;
         }
-
-        println!("{:?}", index);
 
         Ok(KvStore {
             directory: path,
