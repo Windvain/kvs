@@ -3,7 +3,8 @@
 //! KvStore
 //! Building a key-value store in Rust. Working with https://github.com/pingcap/talent-plan.
 
-use std::io::{self, Seek, Write};
+use std::hash::Hash;
+use std::io::{self, BufRead, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
@@ -73,8 +74,8 @@ impl KvStore {
         serialized.push('\n');
 
         let position = self.active_file.seek(io::SeekFrom::Current(0))?;
-
         write!(self.active_file, "{}", serialized)?;
+
         self.index.insert(
             entry.key,
             position);
@@ -83,8 +84,22 @@ impl KvStore {
     }
 
     /// Returns the value stored in the key.
-    pub fn get(&self, key: String) -> Result<Option<String>> {
-        todo!();
+    pub fn get(&mut self, key: String) -> Result<Option<String>> {
+        let offset = self.index.get(&key);
+        if let Some(offset) = offset {
+            self.active_file.seek(SeekFrom::Start(*offset))?;
+
+            let mut buf_reader = io::BufReader::new(self.active_file.try_clone()?);
+            let mut string = String::new();
+
+            buf_reader.read_line(&mut string)?;
+            println!("{string}");
+
+            let entry: KvsLogEntry = serde_json::from_str(&string)?;
+            return Ok(Some(entry.value));
+        }
+
+        return Ok(None);
     }
 
     /// Removes an entry from the store.
@@ -93,20 +108,44 @@ impl KvStore {
         todo!();
     }
 
-    /// Opens the storev file at the specified path.
+    /// Opens the store file at the specified path.
     pub fn open(path: impl Into<PathBuf>) -> Result<KvStore> {
         let path = path.into();
         let active_file_path = path.join("active_file.db");
 
-        let file = OpenOptions::new()
+        let mut file = OpenOptions::new()
             .append(true)
+            .read(true)
             .create(true)
             .open(&active_file_path)?;
+
+        // Read off the file and deserialize the data.
+        file.seek(io::SeekFrom::Start(0))?;
+
+        let mut buf_reader = io::BufReader::new(file.try_clone()?);
+        let mut buffer: String = String::new();
+
+        let mut offset: u64 = 0;
+        let mut index = HashMap::new();
+
+        while let Ok(size) = buf_reader.read_line(&mut buffer) {
+            if size == 0 {
+                break;
+            }
+
+            let entry: KvsLogEntry = serde_json::from_str(&buffer)?;
+            index.insert(entry.key, offset);
+
+            buffer.clear();
+            offset = buf_reader.seek(SeekFrom::Current(0))?;
+        }
+
+        println!("{:?}", index);
 
         Ok(KvStore {
             directory: path,
             active_file: file,
-            index: HashMap::new()
+            index
         })
     }
 }

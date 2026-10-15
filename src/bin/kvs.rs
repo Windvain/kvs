@@ -41,12 +41,17 @@ fn guarded_main() -> kvs::Result<()> {
             return store.set(key, value);
         }
         KvsCommand::Get { key } => {
-            return Ok(());
+            let string = store.get(key)?;
+            if let Some(string) = string {
+                println!("{string}");
+            }
         }
         KvsCommand::Remove { key } => {
             return Ok(());
         }
     }
+
+    Ok(())
 }
 
 fn main() {
