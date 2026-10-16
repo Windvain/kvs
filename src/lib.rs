@@ -3,12 +3,12 @@
 //! KvStore
 //! Building a key-value store in Rust. Working with https://github.com/pingcap/talent-plan.
 
-use std::io::{self, BufRead, Seek, SeekFrom, Write};
-use std::path::PathBuf;
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions, exists};
+use std::io::{self, BufRead, Seek, SeekFrom, Write};
+use std::path::PathBuf;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Result type used by this project.
 pub type Result<T> = std::result::Result<T, KvsError>;
@@ -44,7 +44,7 @@ impl From<serde_json::Error> for KvsError {
 #[derive(Serialize, Deserialize)]
 enum KvsCommandType {
     Set(String),
-    Remove
+    Remove,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -76,9 +76,7 @@ impl KvStore {
         let position = self.active_file.seek(io::SeekFrom::Current(0))?;
         write!(self.active_file, "{}", serialized)?;
 
-        self.index.insert(
-            entry.key,
-            position);
+        self.index.insert(entry.key, position);
 
         Ok(())
     }
@@ -112,7 +110,7 @@ impl KvStore {
     /// This function will not do anything if no entries matching `key` exists.
     pub fn remove(&mut self, key: String) -> Result<()> {
         if !self.index.contains_key(&key) {
-            return Err(KvsError::BadKey)
+            return Err(KvsError::BadKey);
         }
 
         let entry = KvsLogEntry {
@@ -126,9 +124,7 @@ impl KvStore {
         let position = self.active_file.seek(io::SeekFrom::Current(0))?;
         write!(self.active_file, "{}", serialized)?;
 
-        self.index.insert(
-            entry.key,
-            position);
+        self.index.insert(entry.key, position);
 
         Ok(())
     }
@@ -172,7 +168,7 @@ impl KvStore {
         Ok(KvStore {
             directory: path,
             active_file: file,
-            index
+            index,
         })
     }
 }

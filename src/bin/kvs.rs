@@ -1,4 +1,4 @@
-use std::{env::current_dir, fs::{create_dir, exists}, io, process::exit};
+use std::{env::current_dir, process::exit};
 
 use clap::{Parser, Subcommand};
 use kvs::{KvStore, KvsError};
@@ -38,8 +38,7 @@ fn guarded_main() -> kvs::Result<()> {
             let string = store.get(key)?;
             if let Some(string) = string {
                 println!("{string}");
-            }
-            else {
+            } else {
                 println!("Key not found");
             }
         }
@@ -47,7 +46,9 @@ fn guarded_main() -> kvs::Result<()> {
             let result = store.remove(key);
             return result.inspect_err(|error| {
                 match error {
-                    KvsError::BadKey => { println!("Key not found"); }
+                    KvsError::BadKey => {
+                        println!("Key not found");
+                    }
                     _ => { /* ... */ }
                 }
             });
@@ -67,7 +68,9 @@ fn main() {
             // results??
             // HACK: BadKey will be handled in guarded_main.
             KvsError::BadKey => { /* Shut up */ }
-            _ => { println!("{:?}", error); }
+            _ => {
+                println!("{:?}", error);
+            }
         }
 
         exit_code = 1;
