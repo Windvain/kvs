@@ -3,11 +3,10 @@
 //! KvStore
 //! Building a key-value store in Rust. Working with https://github.com/pingcap/talent-plan.
 
-use std::hash::Hash;
 use std::io::{self, BufRead, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 use std::collections::HashMap;
-use std::fs::{File, OpenOptions};
+use std::fs::{File, OpenOptions, create_dir};
 
 use serde::{Serialize, Deserialize};
 
@@ -19,6 +18,9 @@ pub type Result<T> = std::result::Result<T, KvsError>;
 pub enum KvsError {
     /// An unknown error occurred.
     Unknown,
+
+    /// The key was invalid.
+    BadKey,
 
     /// An I/O error occurred.
     IoError(io::Error),
@@ -41,7 +43,7 @@ impl From<serde_json::Error> for KvsError {
 
 #[derive(Serialize, Deserialize)]
 enum KvsCommandType {
-    Set,
+    Set(String),
     Remove
 }
 
@@ -49,7 +51,6 @@ enum KvsCommandType {
 struct KvsLogEntry {
     command: KvsCommandType,
     key: String,
-    value: String,
 }
 
 /// KvStore object.
@@ -65,9 +66,8 @@ impl KvStore {
     /// Else, replace the value at stored in `key` with the value.
     pub fn set(&mut self, key: String, value: String) -> Result<()> {
         let entry = KvsLogEntry {
-            command: KvsCommandType::Set,
+            command: KvsCommandType::Set(value),
             key,
-            value
         };
 
         let mut serialized = serde_json::to_string(&entry)?;
@@ -95,22 +95,56 @@ impl KvStore {
             buf_reader.read_line(&mut string)?;
 
             let entry: KvsLogEntry = serde_json::from_str(&string)?;
-            return Ok(Some(entry.value));
+            match entry.command {
+                KvsCommandType::Set(value) => {
+                    return Ok(Some(value));
+                }
+                KvsCommandType::Remove => {
+                    return Ok(None);
+                }
+            }
         }
 
-        return Ok(None);
+        Ok(None)
     }
 
     /// Removes an entry from the store.
     /// This function will not do anything if no entries matching `key` exists.
     pub fn remove(&mut self, key: String) -> Result<()> {
-        todo!();
+        if !self.index.contains_key(&key) {
+            return Err(KvsError::BadKey)
+        }
+
+        let entry = KvsLogEntry {
+            command: KvsCommandType::Remove,
+            key,
+        };
+
+        let mut serialized = serde_json::to_string(&entry)?;
+        serialized.push('\n');
+
+        let position = self.active_file.seek(io::SeekFrom::Current(0))?;
+        write!(self.active_file, "{}", serialized)?;
+
+        self.index.insert(
+            entry.key,
+            position);
+
+        Ok(())
     }
 
     /// Opens the store file at the specified path.
     pub fn open(path: impl Into<PathBuf>) -> Result<KvStore> {
         let path = path.into();
         let active_file_path = path.join("active_file.db");
+
+        // There could be more errors here (i.e. a file was created with the name "store")
+        // Buttttt... I don't care.
+        if let Err(error) = create_dir(&path) {
+            if error.kind() != io::ErrorKind::AlreadyExists {
+                return Err(KvsError::IoError(error));
+            }
+        }
 
         let mut file = OpenOptions::new()
             .append(true)

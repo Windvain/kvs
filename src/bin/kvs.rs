@@ -1,4 +1,4 @@
-use std::{fs::{create_dir, exists}, process::exit};
+use std::{fs::{create_dir, exists}, io, process::exit};
 
 use clap::{Parser, Subcommand};
 use kvs::{KvStore, KvsError};
@@ -27,13 +27,7 @@ struct KvsConfig {
 }
 
 fn guarded_main() -> kvs::Result<()> {
-    // There could be more errors here (i.e. a file was created with the name "store")
-    // Buttttt... I don't care.
-    if let Err(_error) = exists("store") {
-        return Err(KvsError::Unknown);
-    }
-
-    let mut store = KvStore::open("store")?;
+    let mut store = KvStore::open("store/")?;
     let parser = KvsConfig::parse();
 
     match parser.command {
@@ -45,9 +39,18 @@ fn guarded_main() -> kvs::Result<()> {
             if let Some(string) = string {
                 println!("{string}");
             }
+            else {
+                println!("Key not found");
+            }
         }
         KvsCommand::Remove { key } => {
-            return Ok(());
+            let result = store.remove(key);
+            return result.inspect_err(|error| {
+                match error {
+                    KvsError::BadKey => { println!("Key not found"); }
+                    _ => { /* ... */ }
+                }
+            });
         }
     }
 
@@ -59,7 +62,14 @@ fn main() {
     let mut exit_code = 0;
 
     if let Err(error) = result {
-        println!("{:?}", error);
+        match error {
+            // NOTE: Why does the same error with two different functions have different
+            // results??
+            // HACK: BadKey will be handled in guarded_main.
+            KvsError::BadKey => { /* Shut up */ }
+            _ => { println!("{:?}", error); }
+        }
+
         exit_code = 1;
     }
 
