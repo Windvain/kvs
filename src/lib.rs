@@ -6,7 +6,7 @@
 use std::io::{self, BufRead, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 use std::collections::HashMap;
-use std::fs::{File, OpenOptions, create_dir};
+use std::fs::{File, OpenOptions, exists};
 
 use serde::{Serialize, Deserialize};
 
@@ -138,12 +138,8 @@ impl KvStore {
         let path = path.into();
         let active_file_path = path.join("active_file.db");
 
-        // There could be more errors here (i.e. a file was created with the name "store")
-        // Buttttt... I don't care.
-        if let Err(error) = create_dir(&path) {
-            if error.kind() != io::ErrorKind::AlreadyExists {
-                return Err(KvsError::IoError(error));
-            }
+        if let Err(_error) = exists(&path) {
+            return Err(KvsError::Unknown);
         }
 
         let mut file = OpenOptions::new()

@@ -1,4 +1,4 @@
-use std::{fs::{create_dir, exists}, io, process::exit};
+use std::{env::current_dir, fs::{create_dir, exists}, io, process::exit};
 
 use clap::{Parser, Subcommand};
 use kvs::{KvStore, KvsError};
@@ -27,7 +27,7 @@ struct KvsConfig {
 }
 
 fn guarded_main() -> kvs::Result<()> {
-    let mut store = KvStore::open("store/")?;
+    let mut store = KvStore::open(current_dir()?)?;
     let parser = KvsConfig::parse();
 
     match parser.command {
